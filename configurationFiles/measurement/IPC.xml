@@ -14,19 +14,19 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR TH
 <inputs>
 
     <targetRunDir 
-        value="/root/GA/"
+        value="/home/lbl/GeST/GA/"
     /> <!-- Dir which holds temporary files on the target device -->
     
      <targetHostname 
-        value="127.0.0.1"
+        value="192.168.239.132"
     /> <!-- hostname for ssh purposes -->
     
     <targetSSHusername 
-        value="root"
+        value="lbl"
     /> <!-- ssh username-->
     
       <targetSSHpassword
-        value="root"
+        value="123456"
     /> <!-- ssh password-->
     
     <!-- space separated -->

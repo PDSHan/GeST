@@ -17,7 +17,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR TH
 <!--General GA inputs-->
     
 <loopSize value="50"/> <!--The size in instructions of the generated code sequences-->
-<population_size value="50"/> <!-- The size of each population - generation-->
+<population_size value="10"/> <!-- The size of each population - generation-->
 <mutation_rate value="0.02"/> <!-- each instruction will have this probability to be mutated (changed to something else)-->
 <crossover_type value="1"/>
 <!--0 for uniform crossover, 1 for one point crossover. This is a good article that explains the crossover types http://en.wikipedia.org/wiki/Crossover_(genetic_algorithm). I have implemented 
@@ -27,8 +27,8 @@ only two crossover types the uniform and the 1 point. For generating stress test
 <uniform_rate value="0.5"/>
 <!--Only used when uniform crossover is set... The chance for each instruction to be crossovered-->
 
-<populations_to_run value="1000"/>
-<ellitism value="true"/>
+<populations_to_run value="2"/>
+<ellitism value="false"/>
  <!--
  true or false. If true the best individual is promoted to the next generation. I think keeping this to "true" is good choice
 -->
@@ -73,7 +73,7 @@ Enter the name of the class located in the src\Fitness folder that will be used 
 
     <!--Input/output dir-->
     <dirToSaveResults
-        value="C:/Users/admin/Desktop/Garuns/x86_IPC/"      
+        value="/home/lbl/GeST/dirToSaveResults/x86_IPC/"      
     /> 
     <!-- The code sequeneces will be save in ascii format in .txt files in the specified dir. The name format of each file goes like this populationNumber_individualsIdNumber_fitnessValue_measurement1_.... Also a dir which is named
     after the date/time of the start of the run is created. This dir will contain each population saved in .pkl file and the rand state (also in .pkl format) at each population. This dir can be used as seed dir in case you want to continue an unfinished run. 
@@ -87,7 +87,7 @@ Enter the name of the class located in the src\Fitness folder that will be used 
     
   
     <compilationDir 
-      value="C:/Users/admin/Desktop/liClipseWorkspace/GeST/assembly_compilation_x86_gcc/"
+      value="/home/lbl/GeST/assembly_compilation_x86_gcc/"
       />
      <!-- Dir where the compilation code is located .. IMPORTANT the main_original.s must always contain a line #loop_code. At that line
       the framework will bring in the generated code sequence.. In main_original.s and startup_original.s you can place all the code that you want to be common between each individual e.g. memory and register initialization... 
@@ -191,14 +191,14 @@ Enter the name of the class located in the src\Fitness folder that will be used 
     </operand>
 
 
- <operand
+  <operand
     id="imm_value"
     min="0"
     max="2147483647"
     stride="71582785"
     type="constant"
     toggle="False">
-    </operand>
+  </operand>
 
   <operand
     id="shift_value"
@@ -255,7 +255,7 @@ Enter the name of the class located in the src\Fitness folder that will be used 
       name="ADD_1stMem"
       num_of_operands="2"
       type="intMem"
-       operand1="mem_offset"
+      operand1="mem_offset"
       operand2="integer_register"
       format="add op1(%rsp),op2"
       toggle="False">
@@ -265,7 +265,7 @@ Enter the name of the class located in the src\Fitness folder that will be used 
       name="ADD_2ndMem"
       num_of_operands="2"
       type="intMem"
-       operand1="integer_register"
+      operand1="integer_register"
       operand2="mem_offset"
       format="add op1,op2(%rsp)"
       toggle="False">
@@ -275,7 +275,7 @@ Enter the name of the class located in the src\Fitness folder that will be used 
       name="MUL_1stMem"
       num_of_operands="2"
       type="intMem"
-       operand1="mem_offset"
+      operand1="mem_offset"
       operand2="integer_register"
       format="imul op1(%rsp),op2"
       toggle="False">
@@ -285,7 +285,7 @@ Enter the name of the class located in the src\Fitness folder that will be used 
       name="MOV_1stMem"
       num_of_operands="2"
       type="intMem"
-       operand1="mem_offset"
+      operand1="mem_offset"
       operand2="integer_register"
       format="mov op1(%rsp),op2"
       toggle="False">
@@ -295,7 +295,7 @@ Enter the name of the class located in the src\Fitness folder that will be used 
       name="MOV_2ndMem"
       num_of_operands="2"
       type="intMem"
-       operand1="integer_register"
+      operand1="integer_register"
       operand2="mem_offset"
       format="mov op1,op2(%rsp)"
       toggle="False">
@@ -308,7 +308,7 @@ Enter the name of the class located in the src\Fitness folder that will be used 
       name="ADD"
       num_of_operands="2"
       type="shortLat"
-       operand1="integer_register"
+      operand1="integer_register"
       operand2="integer_register"
       format="add op1,op2"
       toggle="False">
@@ -318,7 +318,7 @@ Enter the name of the class located in the src\Fitness folder that will be used 
       name="ADD_IM"
       num_of_operands="2"
       type="shortLat"
-       operand1="imm_value"
+      operand1="imm_value"
       operand2="integer_register"
       format="add $op1,op2"
       toggle="False">
@@ -328,7 +328,7 @@ Enter the name of the class located in the src\Fitness folder that will be used 
       name="MUL"
       num_of_operands="2"
       type="longLat"
-       operand1="integer_register"
+      operand1="integer_register"
       operand2="integer_register"
       format="imul op1,op2"
       toggle="False">
@@ -338,7 +338,7 @@ Enter the name of the class located in the src\Fitness folder that will be used 
       name="MUL_IM"
       num_of_operands="2"
       type="longLat"
-       operand1="imm_value"
+      operand1="imm_value"
       operand2="integer_register"
       format="imul $op1,op2"
       toggle="False">
@@ -348,57 +348,57 @@ Enter the name of the class located in the src\Fitness folder that will be used 
 
 
     <instruction
-  name="SHL"
-  num_of_operands="2"
-  type="shortLat"
-  format="shl $op1,op2"
-  operand1="shift_value"
-   operand2="integer_register"
-  toggle="False">
+    name="SHL"
+    num_of_operands="2"
+    type="shortLat"
+    format="shl $op1,op2"
+    operand1="shift_value"
+    operand2="integer_register"
+    toggle="False">
     </instruction>
 
    <instruction
-  name="SAR"
-  num_of_operands="2"
-  type="shortLat"
-  format="sar $op1,op2"
-  operand1="shift_value"
-   operand2="integer_register"
-  toggle="False">
+    name="SAR"
+    num_of_operands="2"
+    type="shortLat"
+    format="sar $op1,op2"
+    operand1="shift_value"
+    operand2="integer_register"
+    toggle="False">
     </instruction>
 
 
   <instruction
-  name="ROR"
-  num_of_operands="2"
-  type="shortLat"
-  format="ror $op1,op2"
-  operand1="shift_value"
-   operand2="integer_register"
-  toggle="False">
+    name="ROR"
+    num_of_operands="2"
+    type="shortLat"
+    format="ror $op1,op2"
+    operand1="shift_value"
+    operand2="integer_register"
+    toggle="False">
     </instruction>
 
 
     <instruction
-  name="MOV"
-  num_of_operands="2"
-  type="shortLat"
-  format="mov op1,op2"
-operand1="integer_register"
-  operand2="integer_register"
-  toggle="False"
+    name="MOV"
+    num_of_operands="2"
+    type="shortLat"
+    format="mov op1,op2"
+    operand1="integer_register"
+    operand2="integer_register"
+    toggle="False"
       >
     </instruction>
     
     
     <instruction
-  name="CMP"
-  num_of_operands="2"
-  type="shortLat"
-  format="cmp op1,op2"
-operand1="integer_register"
-  operand2="integer_register"
-  toggle="False"
+    name="CMP"
+    num_of_operands="2"
+    type="shortLat"
+    format="cmp op1,op2"
+    operand1="integer_register"
+    operand2="integer_register"
+    toggle="False"
       >
     </instruction>
     
@@ -406,34 +406,34 @@ operand1="integer_register"
 
 
     <instruction
-   name="FADD"
-   num_of_operands="0"
-   type="floatingPoint"
-   format="faddp"
+    name="FADD"
+    num_of_operands="0"
+    type="floatingPoint"
+    format="faddp"
     toggle="False">
     </instruction>
     
-        <instruction
-   name="FSQRT"
-   num_of_operands="0"
-   type="floatingPoint"
-   format="fsqrt"
+    <instruction
+    name="FSQRT"
+    num_of_operands="0"
+    type="floatingPoint"
+    format="fsqrt"
     toggle="False">
     </instruction>
     
-        <instruction
-   name="FMUL"
-   num_of_operands="0"
-   type="floatingPoint"
-   format="fmulp"
+    <instruction
+    name="FMUL"
+    num_of_operands="0"
+    type="floatingPoint"
+    format="fmulp"
     toggle="False">
     </instruction>
     
-        <instruction
-   name="FDOV"
-   num_of_operands="0"
-   type="floatingPoint"
-   format="fdivp"
+    <instruction
+    name="FDOV"
+    num_of_operands="0"
+    type="floatingPoint"
+    format="fdivp"
     toggle="False">
     </instruction>
 
@@ -449,7 +449,7 @@ operand1="integer_register"
     toggle="False">
     </instruction>
     
-        <instruction
+    <instruction
     name="ADDSD"
     num_of_operands="2"
     type="sse2"
@@ -459,7 +459,7 @@ operand1="integer_register"
     toggle="False">
     </instruction>
 
-      <instruction
+    <instruction
     name="MAXSD"
     num_of_operands="2"
     type="sse2"
@@ -469,7 +469,7 @@ operand1="integer_register"
     toggle="False">
     </instruction>
     
-      <instruction
+    <instruction
     name="MAXPD"
     num_of_operands="2"
     type="sse2"
@@ -499,7 +499,7 @@ operand1="integer_register"
     toggle="False">
     </instruction>
     
-        <instruction
+    <instruction
     name="MULSD"
     num_of_operands="2"
     type="sse2"
@@ -509,7 +509,7 @@ operand1="integer_register"
     toggle="False">
     </instruction>
     
-      <instruction
+    <instruction
     name="MULPD"
     num_of_operands="2"
     type="sse2"
@@ -519,7 +519,7 @@ operand1="integer_register"
     toggle="False">
     </instruction>
     
-            <instruction
+    <instruction
     name="SQRTSD"
     num_of_operands="2"
     type="sse2"
@@ -529,7 +529,7 @@ operand1="integer_register"
     toggle="False">
     </instruction>
     
-      <instruction
+    <instruction
     name="SQRTPD"
     num_of_operands="2"
     type="sse2"

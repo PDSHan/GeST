@@ -19,20 +19,20 @@ class Population(object):
 
 
     def __init__(self,individuals=[]):
-        self.individuals=individuals;
+        self.individuals=individuals
         
     
     def getIndividual(self,index):
-        return self.individuals[index];
+        return self.individuals[index]
         
     def getFittest(self):
-        best_value=float(self.individuals[0].getFitness());
-        best_indiv=self.individuals[0];
+        best_value=float(self.individuals[0].getFitness())
+        best_indiv=self.individuals[0]
         for i in range (self.individuals.__len__()):
             if float(self.individuals[i].getFitness()) > best_value:
                 best_value=float(self.individuals[i].getFitness()) 
-                best_indiv=self.individuals[i];        
-        return best_indiv;
+                best_indiv=self.individuals[i]        
+        return best_indiv
     
     def getAvgFitness(self):
         sum=0
@@ -44,43 +44,43 @@ class Population(object):
         return self.individuals.__len__()
     
     def pickRandomlyAnIndividual(self,rand):
-        return rand.choice(self.individuals);
+        return rand.choice(self.individuals)
         
     def setCumulativeFitness(self): #for roulette wheel selection
-        sum=0.0;
-        self.individuals[0].setCumulativeFitness(int(self.individuals[0].getFitness()*1000000));
+        sum=0.0
+        self.individuals[0].setCumulativeFitness(int(self.individuals[0].getFitness()*1000000))
         for i in range(1,self.individuals.__len__()):
-            fitness=int(self.individuals[i].getFitness()*1000000);
-            self.individuals[i].setCumulativeFitness(self.individuals[i-1].cumulativeFitness+fitness);
+            fitness=int(self.individuals[i].getFitness()*1000000)
+            self.individuals[i].setCumulativeFitness(self.individuals[i-1].cumulativeFitness+fitness)
                     
     def sortByFitessToWeakest(self):
         self.individuals.sort(key=operator.attrgetter('fitness'),reverse=True)
         
     def sortByWeakestToFitess(self):
         self.individuals.sort(key=operator.attrgetter('fitness'))
-        #sorted(self.individuals,key=lambda obj: obj.fitness, reverse=True);
+        #sorted(self.individuals,key=lambda obj: obj.fitness, reverse=True)
     
     def saveIndividual (self,index,individual):
-        self.individuals[index]=individual;
+        self.individuals[index]=individual
         
     def __str__(self):
-        output="";
+        output=""
         for code in self.individuals:
-            output+=str(code.__str__()+"\n");
-        return output;
+            output+=str(code.__str__()+"\n")
+        return output
     
     def keepHalfBest(self):
-        self.sortByFitessToWeakest();
-        half=int(self.individuals.__len__()/2);
+        self.sortByFitessToWeakest()
+        half=int(self.individuals.__len__()/2)
         newList=[]
         for i in range(0,half):
-            newList.append(self.individuals[i]);
-        self.individuals=newList;
+            newList.append(self.individuals[i])
+        self.individuals=newList
         
         
     def pickle(self,filename):
-        pickle.dump(self, filename);
+        pickle.dump(self, filename)
         
     @staticmethod
     def unpickle(filename):
-        return pickle.load(filename);
+        return pickle.load(filename)

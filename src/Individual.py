@@ -8,48 +8,48 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
 TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 '''
-import pickle;
-import copy;
+import pickle
+import copy
 
 class Individual(object):
     '''
     classdocs
     '''
-    id=0;
+    id=0
 
     def __init__(self,sequence=[],generation=0): #Note This code assumes that instruction operands are initiated (mutated) from before
-        Individual.id+=1;
-        self.myId=Individual.id;
-        self.sequence=sequence;
-        self.fitness=0.0; 
-        #self.secondaryMeasurement=0.0;
+        Individual.id+=1
+        self.myId=Individual.id
+        self.sequence=sequence
+        self.fitness=0.0 
+        #self.secondaryMeasurement=0.0
         self.measurements=[]
-        self.branchLabels={};
-        self.cumulativeFitness=0.0; #for wheel selection
-        self.parents=[];
-        self.generation=generation;
-        self.fixUnconditionalBranchLabels();
-        return;
+        self.branchLabels={}
+        self.cumulativeFitness=0.0 #for wheel selection
+        self.parents=[]
+        self.generation=generation
+        self.fixUnconditionalBranchLabels()
+        return
     
     def addInstruction(self,anInstruction):
-        self.sequence.append(anInstruction);
+        self.sequence.append(anInstruction)
     
     def getInstruction(self,index):
-        return self.sequence[index];
+        return self.sequence[index]
     
     def getInstructions(self):
-        return self.sequence;
+        return self.sequence
     
     def fixUnconditionalBranchLabels(self):
-        automatically_incremented={};
+        automatically_incremented={}
         for ins in self.sequence:
             for operand in ins.getOperands():
                 if(operand.type=="automatically_incremented_operand"): 
                     if(operand.id in automatically_incremented.keys()):
-                        automatically_incremented[operand.id]+=int(operand.stride);
+                        automatically_incremented[operand.id]+=int(operand.stride)
                     else:
-                        automatically_incremented[operand.id]=int(operand.min);
-                    operand.currentValue=automatically_incremented[operand.id];
+                        automatically_incremented[operand.id]=int(operand.min)
+                    operand.currentValue=automatically_incremented[operand.id]
     
     def setMeasurementsVector(self,measurements):#by convention the first item of the vector is the fitness value
         self.measurements=measurements
@@ -59,43 +59,43 @@ class Individual(object):
     
     '''def setMeasurementsVector(self,measurements): 
         self.measurements=measurements
-        return;'''
+        return'''
     
     def setCumulativeFitness(self,fitness): #for wheel selection
-        self.cumulativeFitness=fitness;
+        self.cumulativeFitness=fitness
     
     def getFitness(self):
         try:
-            return self.fitness; #by convention the first item of the vector is the fitness value
+            return self.fitness #by convention the first item of the vector is the fitness value
         except:
             return self.measurement #to support continuing runs from legacy population pkls
     #def getSecondaryMeasurement(self):
-    #    return self.secondaryMeasurement;
+    #    return self.secondaryMeasurement
     def getMeasurements(self):
         return self.measurements
     
     def setParents(self,par1,par2): ##the first parent is the code that remains the same.. the second parent is the code that came after crossover
-        self.parents.append(par1);
-        self.parents.append(par2);
+        self.parents.append(par1)
+        self.parents.append(par2)
     
     def clearParents(self):
-        self.parents=None;
+        self.parents=None
     
     def belongsToInitialSeed(self):
         if self.parents:
-            return False;
+            return False
         else:
-            return True;
+            return True
         
     def __str__(self):
-        index=0;
+        index=0
         output=""
         for ins in self.sequence:
-            output+=str("\t"+ins.__str__()+"\n");
+            output+=str("\t"+ins.__str__()+"\n")
             if str(index) in self.branchLabels.keys():
-                output+=str(self.branchLabels[str(index)]+"\n");
-            index+=1;
-        return output;
+                output+=str(self.branchLabels[str(index)]+"\n")
+            index+=1
+        return output
     
     def __cmp__(self,other):
         if self.getFitness()  < other.getFitness():
@@ -106,12 +106,12 @@ class Individual(object):
             return 0
         
     def pickle(self,filename):
-        pickle.dump(self, filename);
+        pickle.dump(self, filename)
     
     @staticmethod
     def unpickle(filename):
-        return pickle.load(filename);
+        return pickle.load(filename)
     
     def copy(self):
-        return copy.deepcopy(self);
+        return copy.deepcopy(self)
     

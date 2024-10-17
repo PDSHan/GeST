@@ -29,12 +29,12 @@ class MeasurementLikwidPower(Measurement):
     def measure(self):  
             
         super().copyFileOverFTP()
-        compilation_command="cd "+self.targetRunDir + " ; gcc main.s -o individual &>/dev/null;"
-        execution_command="cd "+self.targetRunDir+" ; "
+        compilation_command="cd "+self.targetRunDir + "  gcc main.s -o individual &>/dev/null"
+        execution_command="cd "+self.targetRunDir+"  "
         for core in self.coresToUse:
                 execution_command+="taskset -c "+str(core)+" ./individual  &>/dev/null &  "
-        execution_command+=" sudo likwid-powermeter  -s "+str(self.timeToMeasure) +"s > tmp ; pkill individual &> /dev/null;" #make sure that msr module is loaded (modprobe msr) and sudo without password is enabled
-        output_command="cd "+self.targetRunDir + " ; cat tmp | grep Watt | head -n 1 | awk '{print $3}'; rm main.s; rm individual; rm tmp; "; #this grabs the package power
+        execution_command+=" sudo likwid-powermeter  -s "+str(self.timeToMeasure) +"s > tmp  pkill individual &> /dev/null" #make sure that msr module is loaded (modprobe msr) and sudo without password is enabled
+        output_command="cd "+self.targetRunDir + "  cat tmp | grep Watt | head -n 1 | awk '{print $3}' rm main.s rm individual rm tmp " #this grabs the package power
         super().executeSSHcommand(compilation_command)
         super().executeSSHcommand(execution_command)
         stdout=super().executeSSHcommand(output_command)
@@ -48,8 +48,8 @@ class MeasurementLikwidPower(Measurement):
                 print ("Exception line not power")
    
 
-        measurements=[];
-        measurements.append(power_meas);
+        measurements=[]
+        measurements.append(power_meas)
         
-        return measurements;
+        return measurements
             

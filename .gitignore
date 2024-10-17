@@ -1,2 +1,4 @@
-
+/GA
+dirToSaveResults/
+src/test.py
 *.pyc

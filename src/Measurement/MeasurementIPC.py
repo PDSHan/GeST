@@ -10,6 +10,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR TH
 '''
 
 from Measurement.Measurement import Measurement
+import time
 
 class MeasurementIPC(Measurement):
     '''
@@ -25,27 +26,35 @@ class MeasurementIPC(Measurement):
         self.timeToMeasure = self.tryGetIntValue('time_to_measure')
     
     def measure(self):  
-
         super().copyFileOverFTP()
-        compilation_command="cd "+self.targetRunDir + " ; gcc main.s -o individual &>/dev/null;"
-        execution_command="cd "+self.targetRunDir + " ; ./individual & perf stat -e instructions,cycles -o tmp -p $! sleep "+str(self.timeToMeasure) +" ; pkill individual &> /dev/null;"
-        output_command="cd "+self.targetRunDir + " ; cat tmp | grep insn | tr  ',' '.' | awk '{print $4}'; rm main.s; rm individual; rm tmp; ";
+        compilation_command="cd "+self.targetRunDir + " && gcc main.s -o individual"
+        execution_command=self.targetRunDir + "individual & perf stat -e instructions,cycles -o " + self.targetRunDir + "tmp -p $! & sleep " + str(self.timeToMeasure) + " && pkill individual"
+        output_ins_command="cd " + self.targetRunDir + " && cat tmp | grep insn | awk '{print $1}'"
+        output_cycles_command="cd " + self.targetRunDir + " && cat tmp | grep cycles | awk '{print $1}'"
         super().executeSSHcommand(compilation_command)
         super().executeSSHcommand(execution_command)
-        stdout=super().executeSSHcommand(output_command)
-                
-        ipc=0            
-        
-        for line in stdout:
-            #print ("line is "+line)
-            try:
-                test=float(line)
-                ipc=test
-            except ValueError:
-                print ("Exception line not ipc")
-   
+        ins = super().executeSSHcommand(output_ins_command)
+        cycles = super().executeSSHcommand(output_cycles_command)
+        ipc_old = super().executeSSHcommand("cd " + self.targetRunDir + " && cat tmp | grep insn | awk '{print $4}'")
+        print(ipc_old)
 
-        measurements=[];
-        measurements.append(ipc);
-        return measurements;
-            #return ipc;
+        ipc=0
+        ins_test=0
+        cycles_test=0
+        for line in ins:
+            try:
+                ins_test = float(line.replace(",", ""))     
+            except ValueError:
+                print ("Exception line not ins")        
+        for line in cycles:
+            try:
+                cycles_test = float(line.replace(",", ""))      
+            except ValueError:
+                print ("Exception line not cycles")
+        ipc = "%.6f" % float(ins_test/cycles_test)
+        
+        measurements=[]
+        measurements.append(ipc)
+        print(f"measurements is {measurements }")
+        return measurements
+            #return ipc

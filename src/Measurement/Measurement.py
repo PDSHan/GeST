@@ -57,21 +57,21 @@ class Measurement(ABC):
     ##This is the case because sometimes this might be desirable based on the functionality.. For instance bare metal runs won't use the ssh parameters 
     def tryGetStringValue(self,key):
         try:
-            value=self.xmldoc.getElementsByTagName(key)[0].attributes['value'].value;
+            value=self.xmldoc.getElementsByTagName(key)[0].attributes['value'].value
             return value
         except:
             print("Warning failed to read "+str(key))
         
     def tryGetIntValue(self,key):
         try:
-            value=int(self.xmldoc.getElementsByTagName(key)[0].attributes['value'].value);
+            value=int(self.xmldoc.getElementsByTagName(key)[0].attributes['value'].value)
             return value
         except:
             print("Warning failed to read "+str(key))
     
     def tryGetFloatValue(self,key):
         try:
-            value=float(self.xmldoc.getElementsByTagName(key)[0].attributes['value'].value);
+            value=float(self.xmldoc.getElementsByTagName(key)[0].attributes['value'].value)
             return value
         except:
             print("Warning failed to read "+str(key))
@@ -93,6 +93,8 @@ class Measurement(ABC):
                 stdin,stdout,stderr =ssh.exec_command(command)
                 lines=[]
                 for line in stdout.readlines():
+                    lines.append(line)
+                for line in stderr.readlines():
                     lines.append(line)
                 ssh.close()
                 return lines
@@ -128,7 +130,11 @@ class Measurement(ABC):
                 ssh = SSHClient()
                 ssh.set_missing_host_key_policy(client.AutoAddPolicy()) 
                 ssh.connect(self.targetHostname, username=self.targetSSHusername, password=self.targetSSHpassword)
-                sftp=ssh.open_sftp();
+                # if ssh.get_transport().is_active():
+                #     print("Connected successfully!")
+                # else:
+                #     print("Failed to connect.")
+                sftp=ssh.open_sftp()
                 sftp.put(self.sourceFilePath,self.targetRunDir+"/main.s")
                 sftp.close()
                 ssh.close()

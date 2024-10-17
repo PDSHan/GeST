@@ -33,6 +33,6 @@ class DefaultFitness(object):
         fitness=individual.getMeasurements()[0]
         toReturn=[]
         toReturn.append(fitness)
-        for value in individual.getMeasurements():
-            toReturn.append(value)
+        # for value in individual.getMeasurements():
+        #     toReturn.append(value)
         return toReturn
