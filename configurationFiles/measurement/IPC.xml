@@ -14,10 +14,10 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR TH
 <inputs>
 
     <targetRunDir 
-        value="/home/lbl/GeST/GA/"
+        value="/home/lbl/targetRunDir/"
     /> <!-- Dir which holds temporary files on the target device -->
     
-     <targetHostname 
+    <targetHostname 
         value="192.168.239.132"
     /> <!-- hostname for ssh purposes -->
     
@@ -25,7 +25,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR TH
         value="lbl"
     /> <!-- ssh username-->
     
-      <targetSSHpassword
+    <targetSSHpassword
         value="123456"
     /> <!-- ssh password-->
     
@@ -34,8 +34,9 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR TH
     value='0'
     />
 
-
-   <time_to_measure value="1" />
+    <repeated_measurements 
+        value = "5"/>
+    <time_to_measure value="1" />
     
 
 </inputs>

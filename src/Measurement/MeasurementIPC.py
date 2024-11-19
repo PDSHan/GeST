@@ -24,6 +24,7 @@ class MeasurementIPC(Measurement):
     def init(self):
         super().init()
         self.timeToMeasure = self.tryGetIntValue('time_to_measure')
+        self.repeatedMeasurements = self.tryGetIntValue('repeated_measurements')
     
     def measure(self):  
         super().copyFileOverFTP()
@@ -31,30 +32,39 @@ class MeasurementIPC(Measurement):
         execution_command=self.targetRunDir + "individual & perf stat -e instructions,cycles -o " + self.targetRunDir + "tmp -p $! & sleep " + str(self.timeToMeasure) + " && pkill individual"
         output_ins_command="cd " + self.targetRunDir + " && cat tmp | grep insn | awk '{print $1}'"
         output_cycles_command="cd " + self.targetRunDir + " && cat tmp | grep cycles | awk '{print $1}'"
-        super().executeSSHcommand(compilation_command)
-        super().executeSSHcommand(execution_command)
-        ins = super().executeSSHcommand(output_ins_command)
-        cycles = super().executeSSHcommand(output_cycles_command)
-        ipc_old = super().executeSSHcommand("cd " + self.targetRunDir + " && cat tmp | grep insn | awk '{print $4}'")
-        print(ipc_old)
+        lines = super().executeSSHcommand(compilation_command)
+        lines = super().executeSSHcommand(execution_command)
 
+        # ins = super().executeSSHcommand(output_ins_command)
+        # cycles = super().executeSSHcommand(output_cycles_command)
         ipc=0
-        ins_test=0
-        cycles_test=0
-        for line in ins:
+        ins_total=0
+        cycles_total=0
+        for i in range(self.repeatedMeasurements):
+            ins = super().executeSSHcommand(output_ins_command)
+            cycles = super().executeSSHcommand(output_cycles_command)
+            while not ins or not cycles:
+                super().executeSSHcommand(execution_command)
+                ins = super().executeSSHcommand(output_ins_command)
+                cycles = super().executeSSHcommand(output_cycles_command)
             try:
-                ins_test = float(line.replace(",", ""))     
+                ins_out = float(ins[0].replace(",", "").strip()) ##used for X86 plaform.
+                # ins_out = float(ins[0].strip()) #used for ARM plaform.
+                # print(f"ins_out is {ins_out}")
+                ins_total += ins_out
             except ValueError:
                 print ("Exception line not ins")        
-        for line in cycles:
             try:
-                cycles_test = float(line.replace(",", ""))      
+                cycles_out = float(cycles[0].replace(",", "").strip()) ##used for X86 plaform.
+                # cycles_out = float(cycles[0].strip()) #used for ARM plaform.
+                # print(f"cycles_out is {cycles_out}")
+                cycles_total += cycles_out
             except ValueError:
                 print ("Exception line not cycles")
-        ipc = "%.6f" % float(ins_test/cycles_test)
+        ipc = "%.6f" % float(ins_total/cycles_total)
         
         measurements=[]
         measurements.append(ipc)
-        print(f"measurements is {measurements }")
+        # print(f"measurements is {measurements }")
         return measurements
             #return ipc

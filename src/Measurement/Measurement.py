@@ -17,6 +17,7 @@ import socket
 import platform
 import visa
 import os
+import subprocess
 
 class Measurement(ABC):
     '''
@@ -28,6 +29,8 @@ class Measurement(ABC):
         Constructor
         '''
         self.confFile=confFile
+        print(confFile)
+        print()
         self.xmldoc = minidom.parse(confFile)
         
         #most of the below are expected to be initialized in init function (should be called after constructor)
@@ -40,7 +43,6 @@ class Measurement(ABC):
         super().__init__() #abstract class init
         
     def init(self): #should be called after constructor.. this can be overridden by child measurement classes to add new or use other configuration parameters..
-
         self.targetRunDir= self.tryGetStringValue('targetRunDir')
         self.targetHostname= self.tryGetStringValue('targetHostname')
         self.targetSSHusername= self.tryGetStringValue('targetSSHusername')
@@ -90,6 +92,10 @@ class Measurement(ABC):
                 ssh = SSHClient()
                 ssh.set_missing_host_key_policy(client.AutoAddPolicy()) 
                 ssh.connect(self.targetHostname, username=self.targetSSHusername, password=self.targetSSHpassword)
+                # if ssh.get_transport().is_active():
+                #     print("Connected successfully!")
+                # else:
+                #     print("Failed to connect.")
                 stdin,stdout,stderr =ssh.exec_command(command)
                 lines=[]
                 for line in stdout.readlines():
@@ -124,21 +130,30 @@ class Measurement(ABC):
                     raise("Exception: Unable to execute command "+str(command))
                 
     #### utility function for copying the source file over ssh connection.. very common functionality        
-    def copyFileOverFTP(self,continousAttempt=True):
+    def copyFileOverFTP(self,continousAttempt=False):
         while True:
             try:
-                ssh = SSHClient()
-                ssh.set_missing_host_key_policy(client.AutoAddPolicy()) 
-                ssh.connect(self.targetHostname, username=self.targetSSHusername, password=self.targetSSHpassword)
+                # ssh = SSHClient()
+                # ssh.set_missing_host_key_policy(client.AutoAddPolicy()) 
+                # ssh.connect(self.targetHostname, username=self.targetSSHusername, password=self.targetSSHpassword)
                 # if ssh.get_transport().is_active():
                 #     print("Connected successfully!")
                 # else:
                 #     print("Failed to connect.")
-                sftp=ssh.open_sftp()
-                sftp.put(self.sourceFilePath,self.targetRunDir+"/main.s")
-                sftp.close()
-                ssh.close()
-                break    
+                # sftp=ssh.open_sftp()
+                # sftp.put(self.sourceFilePath,self.targetRunDir+"/main.s")
+                # sftp.close()
+                # ssh.close()
+                # scp_command = "scp " + self.sourceFilePath + " " + "root" + "@" + self.targetHostname +":/home/root/GeST/GA/main.s"
+                # result = subprocess.run(scp_command, shell=True, capture_output=True, text=True)
+                scp_command = "scp " + self.sourceFilePath + " " + self.targetSSHusername + "@" + self.targetHostname + ":" + self.targetRunDir + "main.s"
+                # print(scp_command)
+                try: 
+                    result = subprocess.run(scp_command, shell=True, check=True)
+                    # print("文件传输成功") 
+                except subprocess.CalledProcessError as e: 
+                    print(f"文件传输失败: {e}")
+                break
             except:
                 if continousAttempt:
                     continue

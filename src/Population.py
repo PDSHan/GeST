@@ -48,9 +48,13 @@ class Population(object):
         
     def setCumulativeFitness(self): #for roulette wheel selection
         sum=0.0
-        self.individuals[0].setCumulativeFitness(int(self.individuals[0].getFitness()*1000000))
+        # print(self.individuals.__len__())
+        # for i in range(0,self.individuals.__len__()):
+        #     print(self.individuals[i].getFitness())
+
+        self.individuals[0].setCumulativeFitness(int(float(self.individuals[0].getFitness())*1000000))
         for i in range(1,self.individuals.__len__()):
-            fitness=int(self.individuals[i].getFitness()*1000000)
+            fitness=int(float(self.individuals[i].getFitness())*1000000)
             self.individuals[i].setCumulativeFitness(self.individuals[i-1].cumulativeFitness+fitness)
                     
     def sortByFitessToWeakest(self):
@@ -69,11 +73,11 @@ class Population(object):
             output+=str(code.__str__()+"\n")
         return output
     
-    def keepHalfBest(self):
+    def keepPartBest(self):
         self.sortByFitessToWeakest()
-        half=int(self.individuals.__len__()/2)
+        Part=int(self.individuals.__len__()*0.8)
         newList=[]
-        for i in range(0,half):
+        for i in range(0,Part):
             newList.append(self.individuals[i])
         self.individuals=newList
         

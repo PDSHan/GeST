@@ -25,7 +25,7 @@ only two crossover types the uniform and the 1 point. For generating stress test
 <uniform_rate value="0.5"/>
 <!--Only used when uniform crossover is set... The chance for each instruction to be crossovered-->
 
-<populations_to_run value="1000"/>
+<populations_to_run value="500"/>
 <ellitism value="true"/>
  <!--
  true or false. If true the best individual is promoted to the next generation. I think keeping this to "true" is good choice
@@ -72,7 +72,7 @@ Enter the name of the class located in the src\Fitness folder that will be used 
 
     <!--Input/output dir-->
     <dirToSaveResults
-        value="C:/Users/admin/Desktop/Garuns/ARM_IPC/"      
+        value="/home/lbl/GeST/dirToSaveResults/ARM_IPC/"      
     />    <!-- The code sequeneces will be save in ascii format in .txt files in the specified dir. The name format of each file goes like this populationNumber_individualsIdNumber_fitnessValue_measurement1_.... Also a dir which is named
     after the date/time of the start of the run is created. This dir will contain each population saved in .pkl file and the rand state (also in .pkl format) at each population. This dir can be used as seed dir in case you want to continue an unfinished run. 
     Also the contents of this dir can be used for parsing results. The parseGeneticResults.py is an example of how to parse the population files and get statistics -->
@@ -85,7 +85,7 @@ Enter the name of the class located in the src\Fitness folder that will be used 
     
   
     <compilationDir 
-      value="C:/Users/admin/Desktop/liClipseWorkspace/GeST/assembly_compilation_ARM/"
+      value="/home/lbl/GeST/assembly_compilation_ARM/"
       />
        <!-- Dir where the compilation code is located .. IMPORTANT the main_original.s must always contain a line #loop_code. At that line
       the framework will bring in the generated code sequence.. In main_original.s and startup_original.s you can place all the code that you want to be common between each individual e.g. memory and register initialization... 

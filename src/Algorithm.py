@@ -76,7 +76,7 @@ class Algorithm(object):
         self.selectionMethod=self.xmldoc.getElementsByTagName('selectionMethod')[0].attributes['value'].value#0 wheel,1 tournament
         self.tournamentSize = self.xmldoc.getElementsByTagName('tournament_size')[0].attributes['value'].value  
         self.populationsToRun=  int(self.xmldoc.getElementsByTagName('populations_to_run')[0].attributes['value'].value)
-       
+        self.bestFitness = []
         ##compilation and measurement parameters
         self.fitnessClassName = self.xmldoc.getElementsByTagName('fitnessClass')[0].attributes['value'].value 
         
@@ -151,10 +151,11 @@ class Algorithm(object):
         
         '''save assembly compilation in the results dir'''
         if os.path.exists(self.savedStateDir+"assembly_compilation"):
-            shutil.rmtree(self.savedStateDir+"assembly_compilation", ignore_errors=True)  
-        shutil.copytree(self.compilationDir,self.savedStateDir+"assembly_compilation" )
+            shutil.rmtree(self.savedStateDir+"assembly_compilation", ignore_errors=True)
+        shutil.copytree(self.compilationDir,self.savedStateDir+"assembly_compilation")
         if os.path.exists(self.savedStateDir+"assembly_compilation/main.s"):
-            os.remove(self.savedStateDir+"assembly_compilation/main.s")#remove this because they belong to previous run and this can get confusing
+            os.remove(self.savedStateDir+"assembly_compilation/main.s") #remove this because they belong to previous run and this can get confusing
+            os.makedirs(self.savedStateDir + "assembly_compilation/main.s")
         self.compilationDir=self.savedStateDir+"assembly_compilation/"
         print("New compilationDir is "+self.compilationDir)
         
@@ -340,7 +341,7 @@ class Algorithm(object):
              
         return
   
-    def measurePopulation (self):
+    def measurePopulation(self):
         for individual in self.population.individuals:
             ##NOTE Due to fluctuations in measurements is desirable to measure the best individual again
             while True:  #measure until measurement succesful... 
@@ -356,15 +357,15 @@ class Algorithm(object):
             fitnessArray=self.fitness.getFitness(individual)
             fitnessValue=fitnessArray[0]
             individual.setFitness(fitnessValue)
-            print(f"the individual.generation is {individual.generation}")
-            print(f"the individual.id is {individual.myId}")
+            # print(f"the individual.generation is {individual.generation}")
+            # print(f"the individual.id is {individual.myId}")
             measurementStr=""
             
             for measurement in fitnessArray:
                 # print(f"{individual} is {measurement}")
                 measurement_str=("%.6f" % float(measurement)).replace(".","DOT").strip()+"_"
                 measurementStr=measurementStr+measurement_str
-            
+            # print(f"{individual.generation}th generation {individual.myId}th individual fitness is {fitnessValue}")
             if int(self.saveWholeSource)==1:
                 fpath=""
                 if(individual.belongsToInitialSeed()): 
@@ -449,15 +450,18 @@ class Algorithm(object):
  
         
     def __bring_back_code_template__(self):
-            #####before each individual bring back the original copy of main and startup
-            if(os.path.exists(self.compilationDir +"main.s")):
-                os.remove(self.compilationDir +"main.s")
-            shutil.copy(self.compilationDir +"main_original.s", self.compilationDir +"main.s")
-            
-            
-            if(os.path.exists(self.compilationDir +"startup.s")):
-                os.remove(self.compilationDir +"startup.s")
-            #shutil.copy(self.compilationDir +"startup_original.s", self.compilationDir +"startup.s")
+        #####before each individual bring back the original copy of main and startup
+        if(os.path.exists(self.compilationDir +"main.s")):
+            os.remove(self.compilationDir +"main.s")
+        shutil.copy(self.compilationDir +"main_original.s", self.compilationDir +"main.s")
+        # if(os.path.exists(self.compilationDir +"main.s")):
+        #     print(f"{self.compilationDir}")
+        #     print("copy success!\n")
+        
+        
+        if(os.path.exists(self.compilationDir +"startup.s")):
+            os.remove(self.compilationDir +"startup.s")
+        #shutil.copy(self.compilationDir +"startup_original.s", self.compilationDir +"startup.s")
     
         
     def __doTheMeasurement__(self):
@@ -542,6 +546,9 @@ class Algorithm(object):
         self.bestIndividualUntilNow=self.population.getFittest()
         if self.bestIndividualUntilNow == None:
             print(f"we don't find bestIndividualUntilNow")
+        # print(f"{self.bestIndividualUntilNow.generation}th generation bestIndividual is {self.bestIndividualUntilNow.myId}")
+        self.bestFitness.append(self.bestIndividualUntilNow.getFitness())
+        print(self.bestFitness)
         if self.ellitism=="true": #TODO make the choice to keep more individuals from previous populations TODO FIX THE true
             individuals.append(self.bestIndividualUntilNow)
             self.bestIndividualUntilNow.generation+=1 #For the next measurement the promoted individuals will be recorded as individuals of the next population.. Is just for avoiding confusions when processing the results 
@@ -549,20 +556,31 @@ class Algorithm(object):
         else:
             childsCreated=0
         if(self.selectionMethod==Algorithm.WHEEL_SELECTION): 
-            self.population.keepHalfBest()##sightly algorithm change apply roullete on best 50%
+            self.population.keepPartBest()##sightly algorithm change apply roullete on best 50%
             self.population.setCumulativeFitness() 
-        
+        diversity_check = set()
         while childsCreated<int(self.populationSize):
+            # print(diversity_check)
+            if(len(diversity_check)==int(self.populationSize)/2):
+                print(diversity_check)
+                print("")
             if(self.selectionMethod==Algorithm.WHEEL_SELECTION):
                 # Create two children by crossovering two parent selected with the wheel method
                 indiv1=self.__roulletteWheelSelection__()
                 indiv2=self.__roulletteWheelSelection__()
-                #while(indiv1==indiv2):
-                    #indiv2=self.__roulletteWheelSelection__()##the parents must be different TODO check how others do it
+                while(indiv1==indiv2 or (str(indiv1.myId)+" "+str(indiv2.myId)) in diversity_check or (str(indiv2.myId)+" "+str(indiv1.myId)) in diversity_check):
+                    indiv1=self.__roulletteWheelSelection__()
+                    indiv2=self.__roulletteWheelSelection__()##the parents must be different TODO check how others do it
+                diversity_check.add(str(indiv1.myId)+" "+str(indiv2.myId))
+
             else:#tournament
                 indiv1=self.__tournamentSelection__()
                 indiv2=self.__tournamentSelection__()
-            
+                while(indiv1==indiv2 or (str(indiv1.myId)+" "+str(indiv2.myId)) in diversity_check or (str(indiv2.myId)+" "+str(indiv1.myId)) in diversity_check):
+                    indiv1=self.__tournamentSelection__()
+                    indiv2=self.__tournamentSelection__()
+                diversity_check.add(str(indiv1.myId)+" "+str(indiv2.myId))
+
             if(self.rand.random()<=float(self.crossoverRate)): #According to some sources there should be a slight chance some parents to not change , hence the crossoverRate parameter 
                 if(self.crossoverType==Algorithm.UNIFORM_CROSSOVER):
                     children=self.__uniform_crossover__(indiv1, indiv2)
