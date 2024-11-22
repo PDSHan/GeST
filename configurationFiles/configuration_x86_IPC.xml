@@ -17,7 +17,16 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR TH
 <!--General GA inputs-->
     
 <loopSize value="50"/> <!--The size in instructions of the generated code sequences-->
-<population_size value="50"/> <!-- The size of each population - generation-->
+<population_size value="200"/> <!-- The size of each population - generation-->
+
+<algorithm_type value="1"/> <!-- 0 for original genetic algorithm, 1 for ALPS -->
+<!-- Please note, when using the ALPS algorithm, it is essential to ensure that population_size is greater than alpsMaxIndivsPerLayer*alpsNumOfLayers.  -->
+<alpsNumOfLayers value="5"/> <!-- How many age layers in ALPS -->
+<alpsAgeGap value="5"/> <!-- The frequency of creating new individuals -->
+<alpsAgeScheme value="2"/> <!-- The scheme of age limits. 0 for Linear, 1 for Fibonacci, 2 for Polynomial(n^2), 3 for Exponential(2^n) -->
+<alpsMaxIndivsPerLayer value="20"/> <!-- The max num in each age layer except the bottom and the top layer -->
+
+<print_log value="/home/lbl/GeST/"/>
 <mutation_rate value="0.02"/> <!-- each instruction will have this probability to be mutated (changed to something else)-->
 <crossover_type value="1"/>
 <!--0 for uniform crossover, 1 for one point crossover. This is a good article that explains the crossover types http://en.wikipedia.org/wiki/Crossover_(genetic_algorithm). I have implemented 
@@ -26,9 +35,9 @@ only two crossover types the uniform and the 1 point. For generating stress test
 <!--The chance two parent two recombine.. usually is a very high percentage-->
 <uniform_rate value="0.5"/>
 <!--Only used when uniform crossover is set... The chance for each instruction to be crossovered-->
-
-<populations_to_run value="600"/>
+<populations_to_run value="250"/>
 <ellitism value="true"/>
+<ellitism_size value="1"/>
  <!--
  true or false. If true the best individual is promoted to the next generation. I think keeping this to "true" is good choice
 -->

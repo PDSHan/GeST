@@ -2,3 +2,4 @@
 dirToSaveResults/
 src/test.py
 *.pyc
+*.log

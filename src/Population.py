@@ -34,12 +34,31 @@ class Population(object):
                 best_indiv=self.individuals[i]        
         return best_indiv
     
+    def getWeakest(self):
+        worst_value=float(self.individuals[0].getFitness())
+        worst_indiv=self.individuals[0]
+        for i in range (self.individuals.__len__()):
+            if float(self.individuals[i].getFitness()) < worst_value:
+                worst_value=float(self.individuals[i].getFitness()) 
+                worst_indiv=self.individuals[i]        
+        return worst_indiv
+
+    def getGoodFittest(self, size):
+        good_indivs = []
+        #Keep self.individuals no changs
+        sorted_indivs = sorted(self.individuals, key=operator.attrgetter('fitness'), reverse=True)
+        for i in range(size):
+            good_indivs.append(sorted_indivs[i])
+        return good_indivs
+
+
     def getAvgFitness(self):
         sum=0
         for indiv in self.individuals:
             sum+=float(indiv.getFitness())
         avg=sum/self.individuals.__len__()
         return avg
+
     def getSize (self):
         return self.individuals.__len__()
     

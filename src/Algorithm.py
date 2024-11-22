@@ -37,6 +37,8 @@ from statistics import stdev
 from multiprocessing.pool import ThreadPool
 from multiprocessing import  TimeoutError
 import importlib
+import operator
+import copy
 
 #import serial
 
@@ -47,8 +49,14 @@ class Algorithm(object):
     ONEPOINT_CROSSOVER="1"
     WHEEL_SELECTION="1"
     TOURNAMENT_SELECTION="0"
+    ORIGINAL_ALGORITHM="0"
+    ALPS_ALGORITHM="1"
+    Linear_age_func="0"
+    Fibonacci_age_func="1"
+    Polynomial_age_func="2"
+    Exponential_age_func="3"
     
-    
+
     def __init__(self,configurationFile,rand=Random()): #reads configuration file and initializes the first population        
         '''general initialization'''
         self.general_initialization(configurationFile, rand)
@@ -67,16 +75,28 @@ class Algorithm(object):
         
     def intitializeAlgorithmAndRunParameters(self,configurationFile,rand):    
         ##genetic algorithm parameters
+        self.algorithmType = self.xmldoc.getElementsByTagName('algorithm_type')[0].attributes['value'].value
+        if self.algorithmType == Algorithm.ALPS_ALGORITHM:
+            self.alpsNumOfLayers  = int(self.xmldoc.getElementsByTagName('alpsNumOfLayers')[0].attributes['value'].value)
+            self.alpsAgeGap     = int(self.xmldoc.getElementsByTagName('alpsAgeGap')[0].attributes['value'].value)
+            self.alpsAgeScheme    = self.xmldoc.getElementsByTagName('alpsAgeScheme')[0].attributes['value'].value
+            self.alpsMaxIndivsPerLayer = int(self.xmldoc.getElementsByTagName('alpsMaxIndivsPerLayer')[0].attributes['value'].value)
+            self.__alps_init__()
+
         self.populationSize = self.xmldoc.getElementsByTagName('population_size')[0].attributes['value'].value  
         self.mutationRate = self.xmldoc.getElementsByTagName('mutation_rate')[0].attributes['value'].value 
         self.crossoverType = self.xmldoc.getElementsByTagName('crossover_type')[0].attributes['value'].value 
         self.crossoverRate = self.xmldoc.getElementsByTagName('crossover_rate')[0].attributes['value'].value
         self.uniformRate = self.xmldoc.getElementsByTagName('uniform_rate')[0].attributes['value'].value
         self.ellitism = self.xmldoc.getElementsByTagName('ellitism')[0].attributes['value'].value
+        self.ellitismSize = int(self.xmldoc.getElementsByTagName('ellitism_size')[0].attributes['value'].value)
         self.selectionMethod=self.xmldoc.getElementsByTagName('selectionMethod')[0].attributes['value'].value#0 wheel,1 tournament
         self.tournamentSize = self.xmldoc.getElementsByTagName('tournament_size')[0].attributes['value'].value  
         self.populationsToRun=  int(self.xmldoc.getElementsByTagName('populations_to_run')[0].attributes['value'].value)
-        self.bestFitness = []
+        self.printLog = self.xmldoc.getElementsByTagName('print_log')[0].attributes['value'].value + self.algorithmType + "_" + self.selectionMethod + "_" + self.populationSize + "_" + str(self.populationsToRun) + ".log"
+        if os.path.exists(self.printLog):
+            os.remove(self.printLog)
+        self.bestFitnessHistory = []
         ##compilation and measurement parameters
         self.fitnessClassName = self.xmldoc.getElementsByTagName('fitnessClass')[0].attributes['value'].value 
         
@@ -117,7 +137,42 @@ class Algorithm(object):
         self.bestIndividualUntilNow=None
         self.waitCounter=0
         self.populationsTested=0  
-    
+
+    def fibonacci(i): 
+        if i <= 0: 
+            return 0 
+        elif i == 1: 
+            return 1 
+        else: 
+            a, b = 0, 1 
+            for _ in range(2, i + 1): 
+                a, b = b, a + b 
+            return b
+
+    def __alps_init__(self):
+        self.alpsEnvolutions=0
+        self.alpsAgeLayersLists = []
+        self.alpsAgeLists = []
+        for i in range(self.alpsNumOfLayers):
+            newList = []
+            self.alpsAgeLayersLists.append(newList)
+            
+        if self.alpsAgeScheme == Algorithm.Linear_age_func:
+            for i in range(1, self.alpsNumOfLayers+1):
+                self.alpsAgeLists.append(i * self.alpsAgeGap)
+        elif self.alpsAgeScheme == Algorithm.Fibonacci_age_func:
+            for i in range(1, self.alpsNumOfLayers+1):
+                self.alpsAgeLists.append(fibonacci(i) * self.alpsAgeGap)
+        elif self.alpsAgeScheme == Algorithm.Polynomial_age_func:
+            for i in range(1, self.alpsNumOfLayers+1):
+                self.alpsAgeLists.append(i * i * self.alpsAgeGap)
+        elif self.alpsAgeScheme == Algorithm.Exponential_age_func:
+            for i in range(1, self.alpsNumOfLayers+1):
+                self.alpsAgeLists.append(2 ** i * self.alpsAgeGap)
+        else:
+            print("Unknown ALPS age functions!")
+            sys.exit()
+
     def __fixDirEnd__(self,dir):
         if dir=="":
             return dir
@@ -314,6 +369,9 @@ class Algorithm(object):
             for i in range(int(self.populationSize)):
                 individuals.append(self.__randomlyCreateIndividual__())
             self.population=Population(individuals)
+            
+            if self.algorithmType == Algorithm.ALPS_ALGORITHM:
+                self.alpsAgeLayersLists[0] = individuals
         else: #initial population based on existing individuals.. Useful for continuing runs that where stopped              
             newerPop=0 ##find which is the newest population      
             for root, dirs, filenames in os.walk(self.seedDir):
@@ -338,7 +396,7 @@ class Algorithm(object):
             self.populationsExamined=newerPop+1#population will start from the newer population
             self.loadRandstate() #load the previous rand state before evolving pop
             self.evolvePopulation() #immediately evolve population
-             
+ 
         return
   
     def measurePopulation(self):
@@ -357,33 +415,30 @@ class Algorithm(object):
             fitnessArray=self.fitness.getFitness(individual)
             fitnessValue=fitnessArray[0]
             individual.setFitness(fitnessValue)
-            # print(f"the individual.generation is {individual.generation}")
-            # print(f"the individual.id is {individual.myId}")
             measurementStr=""
             
             for measurement in fitnessArray:
-                # print(f"{individual} is {measurement}")
                 measurement_str=("%.6f" % float(measurement)).replace(".","DOT").strip()+"_"
                 measurementStr=measurementStr+measurement_str
-            # print(f"{individual.generation}th generation {individual.myId}th individual fitness is {fitnessValue}")
             if int(self.saveWholeSource)==1:
                 fpath=""
                 if(individual.belongsToInitialSeed()): 
-                    fpath=self.savedStateDir+str(individual.generation)+"_"+str(individual.myId)+"_"+measurementStr+"0_0" +".txt"
+                    fpath=self.savedStateDir+str(individual.generation)+"_"+str(individual.currentLayer)+"_"+str(individual.myId)+"_"+measurementStr+"0_0_"+str(individual.age) +".txt"
                 else:                
-                    fpath=self.savedStateDir+str(individual.generation)+"_"+str(individual.myId)+"_"+measurementStr+str(individual.parents[0].myId)+"_"+str(individual.parents[1].myId) +".txt"
+                    fpath=self.savedStateDir+str(individual.generation)+"_"+str(individual.currentLayer)+"_"+str(individual.myId)+"_"+measurementStr+str(individual.parents[0].myId)+"_"+str(individual.parents[1].myId)+"_"+str(individual.age) +".txt"
                 shutil.copy(self.compilationDir+"/main.s",fpath)
             else:
                 if(individual.belongsToInitialSeed()):
-                    f = open(self.dirToSaveResults+str(individual.generation)+"_"+str(individual.myId)+"_"+measurementStr+"0_0" +".txt",mode="w")  
+                    f = open(self.dirToSaveResults+str(individual.generation)+"_"+str(individual.currentLayer)+"_"+str(individual.myId)+"_"+measurementStr+"0_0_"+str(individual.age) +".txt",mode="w")  
                 else:
-                    f = open(self.dirToSaveResults+str(individual.generation)+"_"+str(individual.myId)+"_"+measurementStr+str(individual.parents[0].myId)+"_"+str(individual.parents[1].myId) +".txt",mode="w")
+                    f = open(self.dirToSaveResults+str(individual.generation)+"_"+str(individual.currentLayer)+"_"+str(individual.myId)+"_"+measurementStr+str(individual.parents[0].myId)+"_"+str(individual.parents[1].myId)+"_"+str(individual.age) +".txt",mode="w")
                 f.write(individual.__str__())
                 f.close()
             
             
             individual.clearParents()#TODO this is just a cheap hack I do for now in order to avoid the recursive grow in length of .pkl files. This is only okay given that I don't actually need anymore that parents.. fon now is okay  
         ##save a file describing the population so it can be loaded later. useful in case of you want to start a run based on the state of previous runs
+        
         output = open(self.savedStateDir+str(self.populationsExamined)+'.pkl','wb')
         self.population.pickle(output)
         output.close()
@@ -447,8 +502,7 @@ class Algorithm(object):
                 else:
                     print(line,end="")
             fileinput.close()'''
- 
-        
+  
     def __bring_back_code_template__(self):
         #####before each individual bring back the original copy of main and startup
         if(os.path.exists(self.compilationDir +"main.s")):
@@ -463,7 +517,6 @@ class Algorithm(object):
             os.remove(self.compilationDir +"startup.s")
         #shutil.copy(self.compilationDir +"startup_original.s", self.compilationDir +"startup.s")
     
-        
     def __doTheMeasurement__(self):
         self.measurement.setSourceFilePath(self.compilationDir+"/main.s")
         return self.measurement.measure() 
@@ -485,9 +538,16 @@ class Algorithm(object):
                 instruction=self.rand.choice(self.allInstructionArray).copy()
                 instruction.mutateOperands(self.rand)
                 instruction_sequence.append(instruction)
-        newIndividual = Individual (instruction_sequence,self.populationsExamined)
+        newIndividual = Individual (instruction_sequence,self.populationsExamined, 0)
         return newIndividual
-    
+
+    def __alps_replaceInitialLayer__(self, number):
+        individuals=[]
+        for i in range(number):
+            individuals.append(self.__randomlyCreateIndividual__())
+        self.alpsAgeLayersLists[0] = individuals
+        print(f"Actually after recreated, 0th layer has {len(self.alpsAgeLayersLists[0])} indivs.")
+
     def areWeDone(self):
         self.waitCounter=self.waitCounter+1
         if int(self.waitCounter) == int(self.populationsToRun):
@@ -524,7 +584,6 @@ class Algorithm(object):
                 self.waitCounter=0
             self.bestIndividualUntilNow=current_population_best'''
         
-        
     def __roulletteWheelSelection__ (self):
         individuals=self.population.individuals
         turn=self.rand.randint(0,individuals[individuals.__len__()-1].cumulativeFitness)
@@ -532,53 +591,180 @@ class Algorithm(object):
             if(int(indiv.cumulativeFitness)>=turn):
                 return indiv #return the first indiv that is equal or bigger to the random generated value
             
-    def __tournamentSelection__(self):
+    def __tournamentSelection__(self, population):
         tournamentIndiv=[]
         for j in range(0,int(self.tournamentSize)):
-            tournamentIndiv.append(self.population.pickRandomlyAnIndividual(self.rand))
+            tournamentIndiv.append(population.pickRandomlyAnIndividual(self.rand))
         tournamentPop=Population(tournamentIndiv)
         return tournamentPop.getFittest()
             
     def evolvePopulation (self): 
         #individuals=[0]*int(self.populationSize)
         individuals=[]
-        individuals2=[]
         self.bestIndividualUntilNow=self.population.getFittest()
-        if self.bestIndividualUntilNow == None:
-            print(f"we don't find bestIndividualUntilNow")
         # print(f"{self.bestIndividualUntilNow.generation}th generation bestIndividual is {self.bestIndividualUntilNow.myId}")
-        self.bestFitness.append(self.bestIndividualUntilNow.getFitness())
-        print(self.bestFitness)
-        if self.ellitism=="true": #TODO make the choice to keep more individuals from previous populations TODO FIX THE true
-            individuals.append(self.bestIndividualUntilNow)
-            self.bestIndividualUntilNow.generation+=1 #For the next measurement the promoted individuals will be recorded as individuals of the next population.. Is just for avoiding confusions when processing the results 
-            childsCreated=1
+        self.bestFitnessHistory.append(self.bestIndividualUntilNow.getFitness())
+        with open(self.printLog, "a") as f:
+            print(f"bestFitnessHistory since {self.bestIndividualUntilNow.generation}th generation :", file=f)
+            print(self.bestFitnessHistory, file=f)
+            print("\n", file=f)
+        if self.algorithmType == Algorithm.ORIGINAL_ALGORITHM:
+            self.__breeding__(individuals)
+        else:#ALPS
+            self.__alpsBreeding__()
+            self.__checkAgeLayers__()
+            for i in range(self.alpsNumOfLayers):
+                print(f"Number of self.alpsAgeLayersLists[{i}] is {len(self.alpsAgeLayersLists[i])}")
+                individuals+=self.alpsAgeLayersLists[i]
+        print(f"Total individuals number is {len(individuals)}")
+        self.population = Population(individuals)
+
+    def __alpsBreeding__ (self):#we don't maintain generation of individuals in ALPS.
+        self.alpsEnvolutions+=1
+        # childsCreated=0
+        newAgeLayerLists = []
+
+        for i in range(self.alpsNumOfLayers):
+            tmpList = []
+            newAgeLayerLists.append(tmpList)
+
+        if self.ellitism=="true": 
+            for i in range(self.alpsNumOfLayers):
+                sortedList = sorted(self.alpsAgeLayersLists[i], key=operator.attrgetter('fitness'), reverse=True)
+                if len(self.alpsAgeLayersLists[i]) >= self.ellitismSize:
+                    # childsCreated+=self.ellitismSize
+                    for j in range(self.ellitismSize):
+                        newAgeLayerLists[i].append(copy.deepcopy(sortedList[j]))
+                        newAgeLayerLists[i][j].age += 1
+                        newAgeLayerLists[i][j].generation += 1
+                elif len(self.alpsAgeLayersLists[i]) < self.ellitismSize and len(self.alpsAgeLayersLists[i]) > 0:
+                    newAgeLayerLists[i] = copy.deepcopy(self.alpsAgeLayersLists[i])
+                    # childsCreated+=len(self.alpsAgeLayersLists[i])
+                    for j in range(len(newAgeLayerLists[i])):
+                        newAgeLayerLists[i][j].age += 1
+                        newAgeLayerLists[i][j].generation += 1
+                else:
+                    pass
+    
+        for i in range(self.alpsNumOfLayers):
+            if len(self.alpsAgeLayersLists[i]) > self.ellitismSize:
+                prepareForCreate = len(self.alpsAgeLayersLists[i]) - self.ellitismSize
+                while prepareForCreate>0:
+                    if(self.selectionMethod==Algorithm.WHEEL_SELECTION):
+                        print(f"we don't support WHEEL_SELECTION with ALPS until now!")
+                        sys.exit()
+                    else:#tournament
+                        if i==0:
+                            ageLayerPopulation = Population(self.alpsAgeLayersLists[i])
+                            indiv1=self.__tournamentSelection__(ageLayerPopulation)
+                            indiv2=self.__tournamentSelection__(ageLayerPopulation)
+                        else:
+                            ageLayerPopulation1 = Population(self.alpsAgeLayersLists[i])
+                            ageLayerPopulation2 = Population(self.alpsAgeLayersLists[i]+self.alpsAgeLayersLists[i-1])
+                            indiv1=self.__tournamentSelection__(ageLayerPopulation1)
+                            indiv2=self.__tournamentSelection__(ageLayerPopulation2)
+                        maxAgeOfParents = indiv1.age if (indiv1.age>indiv2.age) else indiv2.age
+                        if(self.rand.random()<=float(self.crossoverRate)): #According to some sources there should be a slight chance some parents to not change , hence the crossoverRate parameter 
+                            if(self.crossoverType==Algorithm.UNIFORM_CROSSOVER):
+                                children=self.__uniform_crossover__(indiv1, indiv2)
+                            elif (self.crossoverType==Algorithm.ONEPOINT_CROSSOVER):
+                                children=self.__onePoint_crossover__(indiv1, indiv2)  
+                        else:
+                            children=[]
+                            children.append(indiv1)
+                            children.append(indiv2)
+
+                        for child in children:
+                            child.age = maxAgeOfParents + 1
+                            child.currentLayer = indiv1.currentLayer
+                            self.__mutation__(child) #mutate each child and add it to the list
+                            child.fixUnconditionalBranchLabels()##Due to crossover and mutation we must fix any possible duplicate branch labels
+                            newAgeLayerLists[i].append(child) #I don't want to waste any child so some populations can be little bigger in number of individuals
+                            prepareForCreate-=1
+                            # childsCreated+=1
+        
+        for i in range(self.alpsNumOfLayers):
+            self.alpsAgeLayersLists[i]=newAgeLayerLists[i]
+
+    def __checkAgeLayers__(self):
+        for i in range(self.alpsNumOfLayers-1):
+            self.alpsAgeLayersLists[i].sort(key=operator.attrgetter('age'))
+        
+        needMovePerLayer = [0] * (self.alpsNumOfLayers - 1)
+        for i in range(self.alpsNumOfLayers-1):
+            num=0
+            for item in self.alpsAgeLayersLists[i]:
+                if item.age >= self.alpsAgeLists[i]:
+                    num+=1
+                else:
+                    break
+            needMovePerLayer[i]=num
+            print(f"The number of individuals praparing to upgrade in {i}th  is {needMovePerLayer[i]}")           
+        
+        for i in range(self.alpsNumOfLayers-1): #if individual in the highest age layer, it will never move up.
+            while needMovePerLayer[i]>0:
+                needMoveIndiv = self.alpsAgeLayersLists[i][0]
+                self.alpsAgeLayersLists[i].remove(needMoveIndiv)
+                self.alpsAgeLayersLists[i+1].append(needMoveIndiv)
+                needMovePerLayer[i]-=1
+        
+        replaceInBottomLayer=len(self.alpsAgeLayersLists[1])-self.alpsMaxIndivsPerLayer
+        
+        for i in range(1, self.alpsNumOfLayers-1):
+            while len(self.alpsAgeLayersLists[i]) > self.alpsMaxIndivsPerLayer:
+                weakestIndiv = Population(self.alpsAgeLayersLists[i]).getWeakest()
+                self.alpsAgeLayersLists[i].remove(weakestIndiv)
+                #TODO try move up weakestIndiv
+        
+        statisticsMoveup = [0] * (self.alpsNumOfLayers)
+        for i in range(1, self.alpsNumOfLayers):
+            for item in self.alpsAgeLayersLists[i]:
+                if item.currentLayer != i:
+                    statisticsMoveup[i]+=1
+                    item.currentLayer=i
+            print(f"Actually {i}th layer has {statisticsMoveup[i]} new upgrade individual.")
+        
+        print(f"0th layer should recreate {replaceInBottomLayer} indivs.")
+        if self.alpsEnvolutions%self.alpsAgeGap==0:
+            self.__alps_replaceInitialLayer__(replaceInBottomLayer)          
+
+    def __breeding__(self, individuals):
+        if self.ellitism=="true": 
+            if self.ellitismSize==1:
+                individuals.append(self.bestIndividualUntilNow)
+                self.bestIndividualUntilNow.generation+=1 #For the next measurement the promoted individuals will be recorded as individuals of the next population.. Is just for avoiding confusions when processing the results 
+                childsCreated=1
+            else:
+                goodIndividualsUntilNow = self.population.getGoodFittest(self.ellitismSize)
+                for i in range(self.ellitismSize):
+                    individuals.append(goodIndividualsUntilNow[i])
+                    goodIndividualsUntilNow[i].generation+=1
+                childsCreated+=self.ellitismSize
         else:
             childsCreated=0
-        if(self.selectionMethod==Algorithm.WHEEL_SELECTION): 
+        if(self.selectionMethod==Algorithm.WHEEL_SELECTION):
             self.population.keepPartBest()##sightly algorithm change apply roullete on best 50%
-            self.population.setCumulativeFitness() 
+            self.population.setCumulativeFitness()
         diversity_check = set()
         while childsCreated<int(self.populationSize):
             # print(diversity_check)
-            if(len(diversity_check)==int(self.populationSize)/2):
-                print(diversity_check)
-                print("")
             if(self.selectionMethod==Algorithm.WHEEL_SELECTION):
                 # Create two children by crossovering two parent selected with the wheel method
                 indiv1=self.__roulletteWheelSelection__()
                 indiv2=self.__roulletteWheelSelection__()
+                #Forbid using the same parents repeatedly or having identical parents.
                 while(indiv1==indiv2 or (str(indiv1.myId)+" "+str(indiv2.myId)) in diversity_check or (str(indiv2.myId)+" "+str(indiv1.myId)) in diversity_check):
                     indiv1=self.__roulletteWheelSelection__()
                     indiv2=self.__roulletteWheelSelection__()##the parents must be different TODO check how others do it
                 diversity_check.add(str(indiv1.myId)+" "+str(indiv2.myId))
 
             else:#tournament
-                indiv1=self.__tournamentSelection__()
-                indiv2=self.__tournamentSelection__()
+                indiv1=self.__tournamentSelection__(self.population)
+                indiv2=self.__tournamentSelection__(self.population)
+                #Forbid using the same parents repeatedly or having identical parents.
                 while(indiv1==indiv2 or (str(indiv1.myId)+" "+str(indiv2.myId)) in diversity_check or (str(indiv2.myId)+" "+str(indiv1.myId)) in diversity_check):
-                    indiv1=self.__tournamentSelection__()
-                    indiv2=self.__tournamentSelection__()
+                    indiv1=self.__tournamentSelection__(self.population)
+                    indiv2=self.__tournamentSelection__(self.population)
                 diversity_check.add(str(indiv1.myId)+" "+str(indiv2.myId))
 
             if(self.rand.random()<=float(self.crossoverRate)): #According to some sources there should be a slight chance some parents to not change , hence the crossoverRate parameter 
@@ -590,16 +776,12 @@ class Algorithm(object):
                 children=[]
                 children.append(indiv1)
                 children.append(indiv2)
-                
-            for child in children: 
+            for child in children:
                 self.__mutation__(child) #mutate each child and add it to the list
                 child.fixUnconditionalBranchLabels()##Due to crossover and mutation we must fix any possible duplicate branch labels
                 individuals.append(child) #I don't want to waste any child so some populations can be little bigger in number of individuals
                 childsCreated+=1
-                     
-        self.population = Population(individuals)
-        
-        
+      
     def __mutation__ (self,individual):##options for mutation whole instructions or instruction's operands
         instructions=individual.getInstructions()
         for i in range(instructions.__len__()):

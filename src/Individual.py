@@ -17,7 +17,7 @@ class Individual(object):
     '''
     id=0
 
-    def __init__(self,sequence=[],generation=0): #Note This code assumes that instruction operands are initiated (mutated) from before
+    def __init__(self,sequence=[],generation=0,age=0): #Note This code assumes that instruction operands are initiated (mutated) from before
         Individual.id+=1
         self.myId=Individual.id
         self.sequence=sequence
@@ -28,6 +28,8 @@ class Individual(object):
         self.cumulativeFitness=0.0 #for wheel selection
         self.parents=[]
         self.generation=generation
+        self.age=age
+        self.currentLayer=0
         self.fixUnconditionalBranchLabels()
         return
     
