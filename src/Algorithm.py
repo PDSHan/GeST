@@ -39,7 +39,7 @@ from multiprocessing import  TimeoutError
 import importlib
 import operator
 import copy
-
+import time
 #import serial
 
 class Algorithm(object):
@@ -107,7 +107,6 @@ class Algorithm(object):
         self.measurementClassName = self.xmldoc.getElementsByTagName('measurementClass')[0].attributes['value'].value 
         self.measurementClassConfFile = self.xmldoc.getElementsByTagName('measurementClassConfFile')[0].attributes['value'].value
         
-                
         module= importlib.import_module("Measurement."+self.measurementClassName)
         self.measurementClass = getattr(module,self.measurementClassName) 
         if self.measurementClassConfFile[-4:]!=".xml":
@@ -151,11 +150,11 @@ class Algorithm(object):
 
     def __alps_init__(self):
         self.alpsEnvolutions=0
-        self.alpsAgeLayersLists = []
+        self.alpsAgeLayerLists = []
         self.alpsAgeLists = []
         for i in range(self.alpsNumOfLayers):
             newList = []
-            self.alpsAgeLayersLists.append(newList)
+            self.alpsAgeLayerLists.append(newList)
             
         if self.alpsAgeScheme == Algorithm.Linear_age_func:
             for i in range(1, self.alpsNumOfLayers+1):
@@ -366,12 +365,20 @@ class Algorithm(object):
     def createInitialPopulation (self):
         individuals=[]
         if self.seedDir == "": #random initialization
-            for i in range(int(self.populationSize)):
-                individuals.append(self.__randomlyCreateIndividual__())
+            if self.algorithmType==Algorithm.ORIGINAL_ALGORITHM:
+                for i in range(int(self.populationSize)):
+                    individuals.append(self.__randomlyCreateIndividual__())
+            else:#ALPS
+
+                self.alpsAgeLayerLists = [[] for _ in range(self.alpsNumOfLayers)]  
+                for i in range(self.alpsNumOfLayers):
+                    for j in range(self.alpsMaxIndivsPerLayer):
+                        self.alpsAgeLayerLists[i].append(self.__randomlyCreateIndividual__())
+                        self.alpsAgeLayerLists[i][j].currentLayer=i
+                    individuals += self.alpsAgeLayerLists[i]
+
             self.population=Population(individuals)
-            
-            if self.algorithmType == Algorithm.ALPS_ALGORITHM:
-                self.alpsAgeLayersLists[0] = individuals
+
         else: #initial population based on existing individuals.. Useful for continuing runs that where stopped              
             newerPop=0 ##find which is the newest population      
             for root, dirs, filenames in os.walk(self.seedDir):
@@ -406,7 +413,7 @@ class Algorithm(object):
                 try:
                     measurements=self.__measureIndividual__(individual)
                     measurement=measurements[0]                  
-                    measurement_str="%.6f" % float(measurement)        
+                    measurement_str="%.6f" % float(measurement)    
                     break
                 except (ValueError,IOError):
                     continue
@@ -416,7 +423,6 @@ class Algorithm(object):
             fitnessValue=fitnessArray[0]
             individual.setFitness(fitnessValue)
             measurementStr=""
-            
             for measurement in fitnessArray:
                 measurement_str=("%.6f" % float(measurement)).replace(".","DOT").strip()+"_"
                 measurementStr=measurementStr+measurement_str
@@ -434,7 +440,6 @@ class Algorithm(object):
                     f = open(self.dirToSaveResults+str(individual.generation)+"_"+str(individual.currentLayer)+"_"+str(individual.myId)+"_"+measurementStr+str(individual.parents[0].myId)+"_"+str(individual.parents[1].myId)+"_"+str(individual.age) +".txt",mode="w")
                 f.write(individual.__str__())
                 f.close()
-            
             
             individual.clearParents()#TODO this is just a cheap hack I do for now in order to avoid the recursive grow in length of .pkl files. This is only okay given that I don't actually need anymore that parents.. fon now is okay  
         ##save a file describing the population so it can be loaded later. useful in case of you want to start a run based on the state of previous runs
@@ -457,15 +462,15 @@ class Algorithm(object):
             #for core in range(1,int(int(self.cores)+1)):
             #    self.__initializeMemory__(core)
             ##apply toggling on operands
-            for key in list(self.toggleInstructionsList.keys()):
-                self.toggleInstructionsList[key]=1 #first initialize dictionay
-            for ins in individual.getInstructions():
-                if(ins.toggleable=="True"):
-                    if(int(self.toggleInstructionsList[ins.name])%2==1):
-                        ins.toggle(0)
-                    else:
-                        ins.toggle(1)
-                    self.toggleInstructionsList[ins.name]+=1         
+            # for key in list(self.toggleInstructionsList.keys()):
+            #     self.toggleInstructionsList[key]=1 #first initialize dictionay
+            # for ins in individual.getInstructions():
+            #     if(ins.toggleable=="True"):
+            #         if(int(self.toggleInstructionsList[ins.name])%2==1):
+            #             ins.toggle(0)
+            #         else:
+            #             ins.toggle(1)
+            #         self.toggleInstructionsList[ins.name]+=1         
             #dump the individual into mail loop of main.s
             for line in fileinput.input(self.compilationDir+"/main.s", inplace=1):
                 if "loop_code" in line:     
@@ -545,8 +550,8 @@ class Algorithm(object):
         individuals=[]
         for i in range(number):
             individuals.append(self.__randomlyCreateIndividual__())
-        self.alpsAgeLayersLists[0] = individuals
-        print(f"Actually after recreated, 0th layer has {len(self.alpsAgeLayersLists[0])} indivs.")
+        self.alpsAgeLayerLists[0] = individuals
+        print(f"Actually after recreated, 0th layer has {len(self.alpsAgeLayerLists[0])} indivs.")
 
     def areWeDone(self):
         self.waitCounter=self.waitCounter+1
@@ -602,131 +607,120 @@ class Algorithm(object):
         #individuals=[0]*int(self.populationSize)
         individuals=[]
         self.bestIndividualUntilNow=self.population.getFittest()
-        # print(f"{self.bestIndividualUntilNow.generation}th generation bestIndividual is {self.bestIndividualUntilNow.myId}")
+        print(f"now is {self.bestIndividualUntilNow.generation}th generation")
         self.bestFitnessHistory.append(self.bestIndividualUntilNow.getFitness())
         with open(self.printLog, "a") as f:
             print(f"bestFitnessHistory since {self.bestIndividualUntilNow.generation}th generation :", file=f)
             print(self.bestFitnessHistory, file=f)
-            print("\n", file=f)
         if self.algorithmType == Algorithm.ORIGINAL_ALGORITHM:
             self.__breeding__(individuals)
         else:#ALPS
             self.__alpsBreeding__()
             self.__checkAgeLayers__()
-            for i in range(self.alpsNumOfLayers):
-                print(f"Number of self.alpsAgeLayersLists[{i}] is {len(self.alpsAgeLayersLists[i])}")
-                individuals+=self.alpsAgeLayersLists[i]
-        print(f"Total individuals number is {len(individuals)}")
+            with open(self.printLog, "a") as f:
+                for i in range(self.alpsNumOfLayers):
+                    print(f"Number of self.alpsAgeLayerLists[{i}] is {len(self.alpsAgeLayerLists[i])}", file=f)
+                    individuals+=self.alpsAgeLayerLists[i]
+                print(f"Total individuals number is {len(individuals)}", file=f)
         self.population = Population(individuals)
 
-    def __alpsBreeding__ (self):#we don't maintain generation of individuals in ALPS.
-        self.alpsEnvolutions+=1
+    def __alpsBreeding__ (self):
         # childsCreated=0
-        newAgeLayerLists = []
-
-        for i in range(self.alpsNumOfLayers):
-            tmpList = []
-            newAgeLayerLists.append(tmpList)
-
+        newAgeLayerLists = [[] for _ in range(self.alpsNumOfLayers)]
+        childsCreated = [0] * self.alpsNumOfLayers
         if self.ellitism=="true": 
             for i in range(self.alpsNumOfLayers):
-                sortedList = sorted(self.alpsAgeLayersLists[i], key=operator.attrgetter('fitness'), reverse=True)
-                if len(self.alpsAgeLayersLists[i]) >= self.ellitismSize:
-                    # childsCreated+=self.ellitismSize
+                sortedList = sorted(self.alpsAgeLayerLists[i], key=operator.attrgetter('fitness'), reverse=True)
+                if len(self.alpsAgeLayerLists[i]) >= self.ellitismSize:
+                    childsCreated[i] = self.ellitismSize
                     for j in range(self.ellitismSize):
                         newAgeLayerLists[i].append(copy.deepcopy(sortedList[j]))
                         newAgeLayerLists[i][j].age += 1
                         newAgeLayerLists[i][j].generation += 1
-                elif len(self.alpsAgeLayersLists[i]) < self.ellitismSize and len(self.alpsAgeLayersLists[i]) > 0:
-                    newAgeLayerLists[i] = copy.deepcopy(self.alpsAgeLayersLists[i])
-                    # childsCreated+=len(self.alpsAgeLayersLists[i])
+                elif len(self.alpsAgeLayerLists[i]) < self.ellitismSize and len(self.alpsAgeLayerLists[i]) > 0:
+                    childsCreated[i] = len(self.alpsAgeLayerLists[i])
+                    newAgeLayerLists[i] = copy.deepcopy(self.alpsAgeLayerLists[i])
                     for j in range(len(newAgeLayerLists[i])):
                         newAgeLayerLists[i][j].age += 1
                         newAgeLayerLists[i][j].generation += 1
                 else:
-                    pass
+                    print("Error here!")
+                    sys.exit()
     
         for i in range(self.alpsNumOfLayers):
-            if len(self.alpsAgeLayersLists[i]) > self.ellitismSize:
-                prepareForCreate = len(self.alpsAgeLayersLists[i]) - self.ellitismSize
-                while prepareForCreate>0:
-                    if(self.selectionMethod==Algorithm.WHEEL_SELECTION):
-                        print(f"we don't support WHEEL_SELECTION with ALPS until now!")
-                        sys.exit()
-                    else:#tournament
-                        if i==0:
-                            ageLayerPopulation = Population(self.alpsAgeLayersLists[i])
-                            indiv1=self.__tournamentSelection__(ageLayerPopulation)
-                            indiv2=self.__tournamentSelection__(ageLayerPopulation)
-                        else:
-                            ageLayerPopulation1 = Population(self.alpsAgeLayersLists[i])
-                            ageLayerPopulation2 = Population(self.alpsAgeLayersLists[i]+self.alpsAgeLayersLists[i-1])
-                            indiv1=self.__tournamentSelection__(ageLayerPopulation1)
-                            indiv2=self.__tournamentSelection__(ageLayerPopulation2)
-                        maxAgeOfParents = indiv1.age if (indiv1.age>indiv2.age) else indiv2.age
-                        if(self.rand.random()<=float(self.crossoverRate)): #According to some sources there should be a slight chance some parents to not change , hence the crossoverRate parameter 
-                            if(self.crossoverType==Algorithm.UNIFORM_CROSSOVER):
-                                children=self.__uniform_crossover__(indiv1, indiv2)
-                            elif (self.crossoverType==Algorithm.ONEPOINT_CROSSOVER):
-                                children=self.__onePoint_crossover__(indiv1, indiv2)  
-                        else:
-                            children=[]
-                            children.append(indiv1)
-                            children.append(indiv2)
-
-                        for child in children:
-                            child.age = maxAgeOfParents + 1
-                            child.currentLayer = indiv1.currentLayer
-                            self.__mutation__(child) #mutate each child and add it to the list
-                            child.fixUnconditionalBranchLabels()##Due to crossover and mutation we must fix any possible duplicate branch labels
-                            newAgeLayerLists[i].append(child) #I don't want to waste any child so some populations can be little bigger in number of individuals
-                            prepareForCreate-=1
-                            # childsCreated+=1
+            while(childsCreated[i]<len(self.alpsAgeLayerLists[i])):
+                if(self.selectionMethod==Algorithm.TOURNAMENT_SELECTION):
+                    if i==0:
+                        ageLayerPopulation = Population(self.alpsAgeLayerLists[i])
+                    else:
+                        ageLayerPopulation = Population(self.alpsAgeLayerLists[i]+self.alpsAgeLayerLists[i-1])
+                    indiv1=self.__tournamentSelection__(ageLayerPopulation)
+                    indiv2=self.__tournamentSelection__(ageLayerPopulation)
+                    maxAgeOfParents = indiv1.age if (indiv1.age>indiv2.age) else indiv2.age
+                    if(self.rand.random()<=float(self.crossoverRate)): #According to some sources there should be a slight chance some parents to not change , hence the crossoverRate parameter 
+                        if(self.crossoverType==Algorithm.UNIFORM_CROSSOVER):
+                            children=self.__uniform_crossover__(indiv1, indiv2)
+                        elif (self.crossoverType==Algorithm.ONEPOINT_CROSSOVER):
+                            children=self.__onePoint_crossover__(indiv1, indiv2) 
+                            print(f"{len(children)}") 
+                    else:
+                        children=[]
+                        children.append(indiv1)
+                        children.append(indiv2)
+                    for child in children:
+                        child.age = maxAgeOfParents + 1
+                        child.currentLayer = i
+                        self.__mutation__(child) #mutate each child and add it to the list
+                        child.fixUnconditionalBranchLabels()##Due to crossover and mutation we must fix any possible duplicate branch labels
+                        newAgeLayerLists[i].append(child) #I don't want to waste any child so some populations can be little bigger in number of individuals
+                        childsCreated[i]+=1
+                else:#WHEEL
+                    print(f"we don't support WHEEL_SELECTION with ALPS until now!")
+                    sys.exit()
         
         for i in range(self.alpsNumOfLayers):
-            self.alpsAgeLayersLists[i]=newAgeLayerLists[i]
+            self.alpsAgeLayerLists[i]=newAgeLayerLists[i]
 
     def __checkAgeLayers__(self):
-        for i in range(self.alpsNumOfLayers-1):
-            self.alpsAgeLayersLists[i].sort(key=operator.attrgetter('age'))
-        
-        needMovePerLayer = [0] * (self.alpsNumOfLayers - 1)
-        for i in range(self.alpsNumOfLayers-1):
+        with open(self.printLog, "a") as f:
+            for i in range(self.alpsNumOfLayers-1):
+                self.alpsAgeLayerLists[i].sort(key=operator.attrgetter('age'))
+            
             num=0
-            for item in self.alpsAgeLayersLists[i]:
-                if item.age >= self.alpsAgeLists[i]:
-                    num+=1
-                else:
-                    break
-            needMovePerLayer[i]=num
-            print(f"The number of individuals praparing to upgrade in {i}th  is {needMovePerLayer[i]}")           
-        
-        for i in range(self.alpsNumOfLayers-1): #if individual in the highest age layer, it will never move up.
-            while needMovePerLayer[i]>0:
-                needMoveIndiv = self.alpsAgeLayersLists[i][0]
-                self.alpsAgeLayersLists[i].remove(needMoveIndiv)
-                self.alpsAgeLayersLists[i+1].append(needMoveIndiv)
-                needMovePerLayer[i]-=1
-        
-        replaceInBottomLayer=len(self.alpsAgeLayersLists[1])-self.alpsMaxIndivsPerLayer
-        
-        for i in range(1, self.alpsNumOfLayers-1):
-            while len(self.alpsAgeLayersLists[i]) > self.alpsMaxIndivsPerLayer:
-                weakestIndiv = Population(self.alpsAgeLayersLists[i]).getWeakest()
-                self.alpsAgeLayersLists[i].remove(weakestIndiv)
-                #TODO try move up weakestIndiv
-        
-        statisticsMoveup = [0] * (self.alpsNumOfLayers)
-        for i in range(1, self.alpsNumOfLayers):
-            for item in self.alpsAgeLayersLists[i]:
-                if item.currentLayer != i:
-                    statisticsMoveup[i]+=1
-                    item.currentLayer=i
-            print(f"Actually {i}th layer has {statisticsMoveup[i]} new upgrade individual.")
-        
-        print(f"0th layer should recreate {replaceInBottomLayer} indivs.")
-        if self.alpsEnvolutions%self.alpsAgeGap==0:
-            self.__alps_replaceInitialLayer__(replaceInBottomLayer)          
+            needMovePerLayer = [0] * (self.alpsNumOfLayers - 1)
+            for i in range(self.alpsNumOfLayers-1):
+                for item in self.alpsAgeLayerLists[i]:
+                    if item.age >= self.alpsAgeLists[i]:
+                        num+=1
+                        self.alpsAgeLayerLists[i].remove(item)
+                        self.alpsAgeLayerLists[i+1].append(item)
+                needMovePerLayer[i]=num
+                print(f"there are {needMovePerLayer[i]} individuals trying to move up in {i}th layer.", file=f)          
+            
+            # replaceInBottomLayer=0
+            for i in range(1, self.alpsNumOfLayers):
+                while len(self.alpsAgeLayerLists[i]) > (self.alpsMaxIndivsPerLayer+1):
+                    weakestIndiv = Population(self.alpsAgeLayerLists[i]).getWeakest()
+                    self.alpsAgeLayerLists[i].remove(weakestIndiv)
+                    # if weakestIndiv.currentLayer==0:
+                    #     replaceInBottomLayer+=1
+                    #try move up the replaced indiv to the higher layer.
+                    if weakestIndiv.currentLayer==i and i!=self.alpsNumOfLayers-1:
+                        self.alpsAgeLayerLists[i+1].append(weakestIndiv)
+                    else:#If the weakestIndiv come from the lower layer or the highest layer, just remove it.
+                        pass
+            
+            statisticsMoveup = [0] * (self.alpsNumOfLayers)
+            for i in range(1, self.alpsNumOfLayers):
+                for item in self.alpsAgeLayerLists[i]:
+                    if item.currentLayer != i:
+                        statisticsMoveup[i]+=1
+                        item.currentLayer=i
+                print(f"Actually {i}th layer has {statisticsMoveup[i]} new upgrading individual.", file=f)
+            
+            if self.populationsExamined%self.alpsAgeGap==0:
+                # print(f"we need to recreate {replaceInBottomLayer} indivs when {self.populationsExamined}th generation.", file=f)
+                self.__alps_replaceInitialLayer__(self.alpsMaxIndivsPerLayer)         
 
     def __breeding__(self, individuals):
         if self.ellitism=="true": 

@@ -51,22 +51,39 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR TH
         fldpi
         fldpi
         
-        vmovdqa .simdvalue(%rip), %ymm0
-        vmovdqa .simdvalue(%rip), %ymm1
-        vmovdqa .simdvalue(%rip), %ymm2
-        vmovdqa .simdvalue(%rip), %ymm3
-        vmovdqa .simdvalue(%rip), %ymm4
-        vmovdqa .simdvalue(%rip), %ymm5
-        vmovdqa .simdvalue(%rip), %ymm6
-        vmovdqa .simdvalue(%rip), %ymm7
-        vmovdqa .simdvalue(%rip), %ymm8
-        vmovdqa .simdvalue(%rip), %ymm9
-        vmovdqa .simdvalue(%rip), %ymm10
-        vmovdqa .simdvalue(%rip), %ymm11
-        vmovdqa .simdvalue(%rip), %ymm12
-        vmovdqa .simdvalue(%rip), %ymm13
-        vmovdqa .simdvalue(%rip), %ymm14
-        vmovdqa .simdvalue(%rip), %ymm15
+        #vmovdqa .simdvalue(%rip), %ymm0
+        #vmovdqa .simdvalue(%rip), %ymm1
+        #vmovdqa .simdvalue(%rip), %ymm2
+        #vmovdqa .simdvalue(%rip), %ymm3
+        #vmovdqa .simdvalue(%rip), %ymm4
+        #vmovdqa .simdvalue(%rip), %ymm5
+        #vmovdqa .simdvalue(%rip), %ymm6
+        #vmovdqa .simdvalue(%rip), %ymm7
+        #vmovdqa .simdvalue(%rip), %ymm8
+        #vmovdqa .simdvalue(%rip), %ymm9
+        #vmovdqa .simdvalue(%rip), %ymm10
+        #vmovdqa .simdvalue(%rip), %ymm11
+        #vmovdqa .simdvalue(%rip), %ymm12
+        #vmovdqa .simdvalue(%rip), %ymm13
+        #vmovdqa .simdvalue(%rip), %ymm14
+        #vmovdqa .simdvalue(%rip), %ymm15
+        movdqa .simdvalue(%rip), %xmm0
+        movdqa .simdvalue(%rip), %xmm1
+        movdqa .simdvalue(%rip), %xmm2
+        movdqa .simdvalue(%rip), %xmm3
+        movdqa .simdvalue(%rip), %xmm4
+        movdqa .simdvalue(%rip), %xmm5
+        movdqa .simdvalue(%rip), %xmm6
+        movdqa .simdvalue(%rip), %xmm7
+        movdqa .simdvalue(%rip), %xmm8
+        movdqa .simdvalue(%rip), %xmm9
+        movdqa .simdvalue(%rip), %xmm10
+        movdqa .simdvalue(%rip), %xmm11
+        movdqa .simdvalue(%rip), %xmm12
+        movdqa .simdvalue(%rip), %xmm13
+        movdqa .simdvalue(%rip), %xmm14
+        movdqa .simdvalue(%rip), %xmm15
+
 
         mov $50000000, %rcx  #leave for i--
 

@@ -26,15 +26,17 @@ class MeasurementIPC(Measurement):
         self.timeToMeasure = self.tryGetIntValue('time_to_measure')
         self.repeatedMeasurements = self.tryGetIntValue('repeated_measurements')
     
-    def measure(self):  
+    def measure(self): 
+        s = time.time()
         super().copyFileOverFTP()
+        e1 = time.time()
         compilation_command="cd "+self.targetRunDir + " && gcc main.s -o individual"
         execution_command=self.targetRunDir + "individual & perf stat -e instructions,cycles -o " + self.targetRunDir + "tmp -p $! & sleep " + str(self.timeToMeasure) + " && pkill individual"
         output_ins_command="cd " + self.targetRunDir + " && cat tmp | grep insn | awk '{print $1}'"
         output_cycles_command="cd " + self.targetRunDir + " && cat tmp | grep cycles | awk '{print $1}'"
-        lines = super().executeSSHcommand(compilation_command)
-        lines = super().executeSSHcommand(execution_command)
-
+        # super().executeSSHcommand(compilation_command)
+        super().executeSSHcommand(compilation_command + " && "+ execution_command)
+        e2 = time.time()
         # ins = super().executeSSHcommand(output_ins_command)
         # cycles = super().executeSSHcommand(output_cycles_command)
         ipc=0
@@ -62,7 +64,8 @@ class MeasurementIPC(Measurement):
             except ValueError:
                 print ("Exception line not cycles")
         ipc = "%.6f" % float(ins_total/cycles_total)
-        
+        e3 = time.time()
+        print(f"scp consumes {e1-s}s, compile+exe consumes {e2-e1}s, repeated consumes {e3-e2}s")
         measurements=[]
         measurements.append(ipc)
         # print(f"measurements is {measurements }")

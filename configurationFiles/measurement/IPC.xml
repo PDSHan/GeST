@@ -18,9 +18,13 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR TH
     /> <!-- Dir which holds temporary files on the target device -->
     
     <targetHostname 
-        value="192.168.239.132"
+        value="192.168.104.75"
     /> <!-- hostname for ssh purposes -->
     
+    <targetHostport
+        value="8888"    
+    />  <!-- 8888 is device, 8080 is VM in host, 9999 is oscilloscope? -->
+
     <targetSSHusername 
         value="lbl"
     /> <!-- ssh username-->
@@ -30,13 +34,16 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR TH
     /> <!-- ssh password-->
     
     <!-- space separated -->
-     <coresToUse
-    value='0'
+    <coresToUse
+        value='0'
     />
 
     <repeated_measurements 
-        value = "5"/>
-    <time_to_measure value="1" />
+        value = "3"/>
+    
+    <time_to_measure 
+        value="1" 
+    />
     
 
 </inputs>

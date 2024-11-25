@@ -18,6 +18,7 @@ import platform
 import visa
 import os
 import subprocess
+import time
 
 class Measurement(ABC):
     '''
@@ -29,10 +30,7 @@ class Measurement(ABC):
         Constructor
         '''
         self.confFile=confFile
-        print(confFile)
-        print()
         self.xmldoc = minidom.parse(confFile)
-        
         #most of the below are expected to be initialized in init function (should be called after constructor)
         self.targetRunDir= None
         self.targetHostname= None
@@ -40,18 +38,27 @@ class Measurement(ABC):
         self.targetSSHpassword = None
         self.coresToUse=None
         self.sourceFilePath=None #to be set in setSourceFilePath funtion
+        self.ssh = None 
         super().__init__() #abstract class init
         
     def init(self): #should be called after constructor.. this can be overridden by child measurement classes to add new or use other configuration parameters..
         self.targetRunDir= self.tryGetStringValue('targetRunDir')
         self.targetHostname= self.tryGetStringValue('targetHostname')
+        self.targetHostport= self.tryGetStringValue('targetHostport')
         self.targetSSHusername= self.tryGetStringValue('targetSSHusername')
         self.targetSSHpassword = self.tryGetStringValue('targetSSHpassword')
+        self.connect()
         coresToUseString=self.tryGetStringValue('coresToUse')
         self.coresToUse=[]
         for core in coresToUseString.split(" "):
             self.coresToUse.append(int(core))
     
+    def connect(self):
+        if self.ssh is None or not self.ssh.get_transport().is_active(): 
+            self.ssh = SSHClient() 
+            self.ssh.set_missing_host_key_policy(client.AutoAddPolicy()) 
+            self.ssh.connect(self.targetHostname, port=self.targetHostport, username=self.targetSSHusername, password=self.targetSSHpassword)
+
     def setSourceFilePath(self,sourceFilePath): #should be called before measurement or in the begining of the GA run if the source file path doesn't changes
         self.sourceFilePath=sourceFilePath
         
@@ -89,22 +96,13 @@ class Measurement(ABC):
         tries=0
         while True:
             try:
-                ssh = SSHClient()
-                ssh.set_missing_host_key_policy(client.AutoAddPolicy()) 
-                ssh.connect(self.targetHostname, username=self.targetSSHusername, password=self.targetSSHpassword)
-                # if ssh.get_transport().is_active():
-                #     print("Connected successfully!")
-                # else:
-                #     print("Failed to connect.")
-                stdin,stdout,stderr =ssh.exec_command(command)
+                stdin,stdout,stderr =self.ssh.exec_command(command)
                 lines=[]
                 for line in stdout.readlines():
                     lines.append(line)
                 for line in stderr.readlines():
                     lines.append(line)
-                ssh.close()
                 return lines
-                
             except:
                 if continousAttempt and tries<max_tries:
                     tries=tries+1
@@ -116,10 +114,10 @@ class Measurement(ABC):
         tries=0
         while True:
             try:
-                ssh = SSHClient()
-                ssh.set_missing_host_key_policy(client.AutoAddPolicy()) 
-                ssh.connect(self.targetHostname, username=self.targetSSHusername, password=self.targetSSHpassword)
-                ssh.exec_command(command)
+                # ssh = SSHClient()
+                # ssh.set_missing_host_key_policy(client.AutoAddPolicy()) 
+                # ssh.connect(self.targetHostname, port=self.targetHostport, username=self.targetSSHusername, password=self.targetSSHpassword)
+                self.ssh.exec_command(command)
                 ssh.close()
                 return
             except:
@@ -146,13 +144,15 @@ class Measurement(ABC):
                 # ssh.close()
                 # scp_command = "scp " + self.sourceFilePath + " " + "root" + "@" + self.targetHostname +":/home/root/GeST/GA/main.s"
                 # result = subprocess.run(scp_command, shell=True, capture_output=True, text=True)
-                scp_command = "scp " + self.sourceFilePath + " " + self.targetSSHusername + "@" + self.targetHostname + ":" + self.targetRunDir + "main.s"
-                # print(scp_command)
-                try: 
+                
+                scp_command = "scp -P "+ self.targetHostport + " " + self.sourceFilePath + " " + self.targetSSHusername + "@" + self.targetHostname + ":" + self.targetRunDir + "main.s"
+                try:
                     result = subprocess.run(scp_command, shell=True, check=True)
                     # print("文件传输成功") 
                 except subprocess.CalledProcessError as e: 
                     print(f"文件传输失败: {e}")
+                
+                
                 break
             except:
                 if continousAttempt:
